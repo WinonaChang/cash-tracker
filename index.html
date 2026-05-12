@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接案現金水位追蹤器</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.6.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg: #f9f9f9; --card: #ffffff; --border: #e2e2e2;
+    --text: #1a1a1a; --text2: #6b7280; --blue: #185FA5; --brown: #854F0B; --green: #3B6D11;
+    --radius: 12px; --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+  .container { max-width: 680px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px; }
+  .tabs { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1.25rem; }
+  .tab { flex: 1; padding: 9px 0; font-size: 13px; text-align: center; cursor: pointer; background: var(--card); color: var(--text2); border: none; font-family: var(--font); transition: background .15s; }
+  .tab.active { background: #E6F1FB; color: var(--blue); font-weight: 500; }
+  .tab:not(:last-child) { border-right: 1px solid var(--border); }
+  .section-title { font-size: 13px; font-weight: 500; color: var(--text2); margin: 1.25rem 0 8px; display: flex; align-items: center; gap: 5px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 12px; }
+  .income-row, .pay-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .income-row:last-child, .pay-row:last-child { margin-bottom: 0; }
+  .editable { font-size: 13px; color: var(--text2); min-width: 72px; outline: none; border-bottom: 1px solid var(--border); }
+  input[type=number], input[type=text] {
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px;
+    font-size: 13px; background: var(--bg); color: var(--text); font-family: var(--font); width: 100%;
+  }
+  input[type=number] { width: auto; flex: 1; }
+  input:focus { outline: none; border-color: #93C5FD; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #E6F1FB; color: var(--blue); white-space: nowrap; }
+  .fixed-tag { font-size: 11px; padding: 2px 6px; border-radius: 999px; background: #FAEEDA; color: #633806; white-space: nowrap; }
+  .del-btn { background: none; border: none; cursor: pointer; color: var(--text2); font-size: 15px; padding: 0 4px; line-height: 1; }
+  .add-btn { font-size: 13px; color: var(--text2); cursor: pointer; border: 1px dashed var(--border); border-radius: 8px; padding: 6px 12px; width: 100%; text-align: center; margin-top: 8px; background: transparent; font-family: var(--font); }
+  .add-btn:hover { background: var(--bg); }
+  .pay-label { font-size: 13px; color: var(--text2); min-width: 80px; display: flex; align-items: center; gap: 4px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .metric { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .85rem 1rem; }
+  .metric .ml { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .metric .mv { font-size: 17px; font-weight: 500; }
+  .scene-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 1rem; align-items: end; }
+  .scene-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .scene-col .slabel { font-size: 13px; color: var(--text2); font-weight: 500; }
+  .scene-col .sval { font-size: 14px; font-weight: 500; }
+  .scene-col .spct { font-size: 12px; color: var(--text2); }
+  canvas { display: block; border-radius: 8px; max-width: 100%; }
+  .pay-breakdown { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
+  .brow { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); padding: 3px 0; }
+  .brow.total { font-weight: 500; color: var(--text); font-size: 13px; border-top: 1px solid var(--border); margin-top: 4px; padding-top: 6px; }
+  .save-bar { display: flex; gap: 8px; margin-bottom: 1rem; align-items: center; }
+  .save-bar input { font-size: 13px; }
+  .primary-btn { background: var(--blue); color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-family: var(--font); cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+  .primary-btn:hover { background: #0C447C; }
+  .hist-list { display: flex; flex-direction: column; gap: 8px; }
+  .hist-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: .85rem 1.25rem; }
+  .hist-item-name { font-size: 14px; font-weight: 500; }
+  .hist-item-date { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .hist-item-nums { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-top: 10px; }
+  .hist-num .hl { font-size: 11px; color: var(--text2); }
+  .hist-num .hv { font-size: 13px; font-weight: 500; }
+  .hist-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .hist-actions button { font-size: 12px; padding: 5px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; font-family: var(--font); display: flex; align-items: center; gap: 4px; }
+  .hist-actions .del-action { color: #A32D2D; }
+  .empty-msg { text-align: center; padding: 2.5rem; font-size: 14px; color: var(--text2); }
+  .status-bar { text-align: center; padding: 10px; border-radius: var(--radius); background: var(--bg); border: 1px solid var(--border); font-size: 14px; margin-bottom: 1rem; }
+  .toast { position: fixed; top: 16px; right: 16px; background: #3B6D11; color: #EAF3DE; font-size: 13px; padding: 8px 16px; border-radius: 8px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+  @media (max-width: 480px) {
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+    .scene-row { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    canvas { width: 100% !important; height: auto !important; }
+    .save-bar { flex-direction: column; }
+    .save-bar input, .primary-btn { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1><i class="ti ti-plant" style="font-size:20px;color:#3B6D11"></i> 接案現金水位追蹤器</h1>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('input')"><i class="ti ti-edit" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i>記帳</button>
+    <button class="tab" onclick="switchTab('history')"><i class="ti ti-history" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i>歷史紀錄</button>
+  </div>
+
+  <div id="tab-input">
+    <div class="section-title"><i class="ti ti-cash" style="font-size:14px"></i> 收入來源</div>
+    <div class="card">
+      <div id="income-list">
+        <div class="income-row">
+          <span contenteditable="true" class="editable">網頁設計</span>
+          <input type="number" value="30000" min="0" step="500" oninput="calc()">
+          <span class="badge">接案</span>
+          <button onclick="removeRow(this,'income-list')" class="del-btn">&#x2715;</button>
+        </div>
+        <div class="income-row">
+          <span contenteditable="true" class="editable">App 開發</span>
+          <input type="number" value="45000" min="0" step="500" oninput="calc()">
+          <span class="badge">接案</span>
+          <button onclick="removeRow(this,'income-list')" class="del-btn">&#x2715;</button>
+        </div>
+        <div class="income-row">
+          <span contenteditable="true" class="editable">顧問諮詢</span>
+          <input type="number" value="15000" min="0" step="500" oninput="calc()">
+          <span class="badge">其他</span>
+          <button onclick="removeRow(this,'income-list')" class="del-btn">&#x2715;</button>
+        </div>
+      </div>
+      <button class="add-btn" onclick="addIncome()"><i class="ti ti-plus" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i>新增收入管道</button>
+    </div>
+
+    <div class="section-title"><i class="ti ti-receipt" style="font-size:14px"></i> 代繳款細項</div>
+    <div class="card">
+      <div id="pay-list">
+        <div class="pay-row">
+          <div class="pay-label"><i class="ti ti-device-laptop" style="font-size:13px"></i><span contenteditable="true" class="editable" style="min-width:48px">軟體費</span></div>
+          <input type="number" value="3500" min="0" step="100" oninput="calc()">
+          <span class="fixed-tag">固定</span>
+          <button class="del-btn" onclick="removeRow(this,'pay-list')">&#x2715;</button>
+        </div>
+        <div class="pay-row">
+          <div class="pay-label"><i class="ti ti-run" style="font-size:13px"></i><span contenteditable="true" class="editable" style="min-width:48px">運動費</span></div>
+          <input type="number" value="2000" min="0" step="100" oninput="calc()">
+          <span class="fixed-tag">固定</span>
+          <button class="del-btn" onclick="removeRow(this,'pay-list')">&#x2715;</button>
+        </div>
+        <div class="pay-row">
+          <div class="pay-label"><i class="ti ti-heart" style="font-size:13px"></i><span contenteditable="true" class="editable" style="min-width:48px">情侶用餐</span></div>
+          <input type="number" value="4000" min="0" step="100" oninput="calc()">
+          <span class="fixed-tag">固定</span>
+          <button class="del-btn" onclick="removeRow(this,'pay-list')">&#x2715;</button>
+        </div>
+        <div class="pay-row">
+          <div class="pay-label"><i class="ti ti-dots" style="font-size:13px"></i><span contenteditable="true" class="editable" style="min-width:48px">其他</span></div>
+          <input type="number" value="1500" min="0" step="100" oninput="calc()">
+          <span class="fixed-tag">固定</span>
+          <button class="del-btn" onclick="removeRow(this,'pay-list')">&#x2715;</button>
+        </div>
+      </div>
+      <button class="add-btn" onclick="addPay()"><i class="ti ti-plus" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i>新增代繳項目</button>
+      <div class="pay-breakdown" id="pay-breakdown"></div>
+    </div>
+
+    <div class="section-title"><i class="ti ti-plant" style="font-size:14px"></i> 儲蓄</div>
+    <div class="card">
+      <div class="pay-row" style="margin-bottom:0">
+        <div class="pay-label"><i class="ti ti-piggy-bank" style="font-size:13px"></i><span>儲蓄金額</span></div>
+        <input type="number" id="saving" value="20000" min="0" step="500" oninput="calc()">
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="metric"><div class="ml">總收入</div><div class="mv" id="m-total">NT$90,000</div></div>
+      <div class="metric"><div class="ml">代繳款合計</div><div class="mv" id="m-pay" style="color:var(--brown)">NT$11,000</div></div>
+      <div class="metric"><div class="ml">可動現金</div><div class="mv" id="m-avail" style="color:var(--blue)">NT$59,000</div></div>
+    </div>
+
+    <div class="scene-row">
+      <div class="scene-col">
+        <div class="slabel">可動現金</div>
+        <canvas id="cWater" width="160" height="180"></canvas>
+        <div class="sval" id="sv-avail" style="color:var(--blue)">NT$59,000</div>
+        <div class="spct" id="sp-avail">66%</div>
+      </div>
+      <div class="scene-col">
+        <div class="slabel">代繳款</div>
+        <canvas id="cSoil" width="160" height="180"></canvas>
+        <div class="sval" id="sv-pay" style="color:var(--brown)">NT$11,000</div>
+        <div class="spct" id="sp-pay">12%</div>
+      </div>
+      <div class="scene-col">
+        <div class="slabel">儲蓄</div>
+        <canvas id="cPlant" width="160" height="180"></canvas>
+        <div class="sval" id="sv-save" style="color:var(--green)">NT$20,000</div>
+        <div class="spct" id="sp-save">22%</div>
+      </div>
+    </div>
+
+    <div class="status-bar" id="status-bar">財務健康，繼續保持</div>
+
+    <div class="save-bar">
+      <input type="text" id="snap-name" placeholder="紀錄名稱（例：2026年5月）">
+      <button class="primary-btn" onclick="saveSnap()"><i class="ti ti-device-floppy" style="font-size:13px"></i>儲存本次紀錄</button>
+    </div>
+  </div>
+
+  <div id="tab-history" style="display:none">
+    <div id="hist-content" class="hist-list"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast">已儲存</div>
+
+<script>
+var waveT=0, incIdx=0, payIdx=0;
+var incomeNames=['UI設計','後端開發','SEO顧問','文案撰寫','教學課程'];
+var payNames=['交通費','訂閱費','保險費','電話費','房租'];
+var payIcons=['ti-car','ti-brand-netflix','ti-shield','ti-device-mobile','ti-home'];
+
+function fmt(n){return 'NT$'+Math.round(n).toLocaleString('zh-TW')}
+
+function switchTab(t){
+  document.getElementById('tab-input').style.display=t==='input'?'block':'none';
+  document.getElementById('tab-history').style.display=t==='history'?'block':'none';
+  document.querySelectorAll('.tab').forEach(function(b,i){b.classList.toggle('active',(t==='input'&&i===0)||(t==='history'&&i===1))});
+  if(t==='history') renderHistory();
+}
+
+function getTotal(){
+  var s=0;
+  document.querySelectorAll('#income-list .income-row input[type=number]').forEach(function(i){s+=Math.max(0,parseFloat(i.value)||0)});
+  return s;
+}
+function getPayable(){
+  var s=0;
+  document.querySelectorAll('#pay-list .pay-row input[type=number]').forEach(function(i){s+=Math.max(0,parseFloat(i.value)||0)});
+  return s;
+}
+
+function removeRow(btn,listId){
+  var list=document.getElementById(listId);
+  if(list.querySelectorAll('.income-row,.pay-row').length>1){btn.closest('.income-row,.pay-row').remove();calc();}
+}
+
+function addIncome(){
+  var div=document.createElement('div');div.className='income-row';
+  div.innerHTML='<span contenteditable="true" class="editable">'+incomeNames[incIdx%incomeNames.length]+'</span><input type="number" value="10000" min="0" step="500" oninput="calc()"><span class="badge">接案</span><button onclick="removeRow(this,\'income-list\')" class="del-btn">&#x2715;</button>';
+  document.getElementById('income-list').appendChild(div);incIdx++;calc();
+}
+
+function addPay(){
+  var icon=payIcons[payIdx%payIcons.length],name=payNames[payIdx%payNames.length];
+  var div=document.createElement('div');div.className='pay-row';
+  div.innerHTML='<div class="pay-label"><i class="ti '+icon+'" style="font-size:13px"></i><span contenteditable="true" class="editable" style="min-width:48px">'+name+'</span></div><input type="number" value="1000" min="0" step="100" oninput="calc()"><span class="fixed-tag">自訂</span><button class="del-btn" onclick="removeRow(this,\'pay-list\')">&#x2715;</button>';
+  document.getElementById('pay-list').appendChild(div);payIdx++;calc();
+}
+
+function calc(){
+  var total=Math.max(1,getTotal()),payable=Math.max(0,getPayable()),saving=Math.max(0,parseFloat(document.getElementById('saving').value)||0),avail=Math.max(0,total-payable-saving);
+  document.getElementById('m-total').textContent=fmt(total);
+  document.getElementById('m-pay').textContent=fmt(payable);
+  document.getElementById('m-avail').textContent=fmt(avail);
+  document.getElementById('sv-avail').textContent=fmt(avail);document.getElementById('sp-avail').textContent=Math.round(avail/total*100)+'%';
+  document.getElementById('sv-pay').textContent=fmt(payable);document.getElementById('sp-pay').textContent=Math.round(payable/total*100)+'%';
+  document.getElementById('sv-save').textContent=fmt(saving);document.getElementById('sp-save').textContent=Math.round(saving/total*100)+'%';
+  var rows=document.querySelectorAll('#pay-list .pay-row'),bd='';
+  rows.forEach(function(r){var n=r.querySelector('.pay-label span'),v=parseFloat(r.querySelector('input').value)||0;if(v>0)bd+='<div class="brow"><span>'+(n?n.textContent:'項目')+'</span><span>'+fmt(v)+'</span></div>';});
+  bd+='<div class="brow total"><span>合計</span><span>'+fmt(payable)+'</span></div>';
+  document.getElementById('pay-breakdown').innerHTML=bd;
+  var ap=avail/total,sb=document.getElementById('status-bar');
+  if(avail<0){sb.textContent='超支了！請檢查收支';sb.style.color='#A32D2D';}
+  else if(ap<0.15){sb.textContent='可動現金偏低，建議減少支出';sb.style.color='#993C1D';}
+  else if(ap<0.3){sb.textContent='財務稍緊，留意代繳款比例';sb.style.color='#854F0B';}
+  else{sb.textContent='財務健康，繼續保持';sb.style.color='#3B6D11';}
+  drawSoil(document.getElementById('cSoil'),payable/total);
+  drawPlant(document.getElementById('cPlant'),saving/total);
+}
+
+function showToast(msg){
+  var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2000);
+}
+
+function saveSnap(){
+  var name=document.getElementById('snap-name').value.trim()||'紀錄 '+new Date().toLocaleDateString('zh-TW');
+  var total=Math.max(1,getTotal()),payable=Math.max(0,getPayable()),saving=Math.max(0,parseFloat(document.getElementById('saving').value)||0),avail=Math.max(0,total-payable-saving);
+  var incItems=[],payItems=[];
+  document.querySelectorAll('#income-list .income-row').forEach(function(r){
+    var lbl=r.querySelector('span.editable'),inp=r.querySelector('input');
+    if(lbl&&inp)incItems.push({name:lbl.textContent,val:parseFloat(inp.value)||0});
+  });
+  document.querySelectorAll('#pay-list .pay-row').forEach(function(r){
+    var lbl=r.querySelector('.pay-label span'),inp=r.querySelector('input');
+    if(lbl&&inp)payItems.push({name:lbl.textContent,val:parseFloat(inp.value)||0});
+  });
+  var snap={id:Date.now(),name:name,date:new Date().toLocaleDateString('zh-TW'),total:total,payable:payable,saving:saving,avail:avail,incItems:incItems,payItems:payItems};
+  try{
+    var arr=JSON.parse(localStorage.getItem('cashHistory')||'[]');
+    arr.unshift(snap);if(arr.length>30)arr=arr.slice(0,30);
+    localStorage.setItem('cashHistory',JSON.stringify(arr));
+    showToast('已儲存「'+name+'」');
+    document.getElementById('snap-name').value='';
+  }catch(e){showToast('儲存失敗');}
+}
+
+function deleteSnap(id){
+  try{
+    var arr=JSON.parse(localStorage.getItem('cashHistory')||'[]');
+    arr=arr.filter(function(s){return s.id!==id;});
+    localStorage.setItem('cashHistory',JSON.stringify(arr));
+    renderHistory();
+  }catch(e){}
+}
+
+function loadSnap(snap){
+  var il=document.getElementById('income-list');il.innerHTML='';
+  (snap.incItems||[]).forEach(function(it){
+    var div=document.createElement('div');div.className='income-row';
+    div.innerHTML='<span contenteditable="true" class="editable">'+it.name+'</span><input type="number" value="'+it.val+'" min="0" step="500" oninput="calc()"><span class="badge">接案</span><button onclick="removeRow(this,\'income-list\')" class="del-btn">&#x2715;</button>';
+    il.appendChild(div);
+  });
+  var pl=document.getElementById('pay-list');pl.innerHTML='';
+  (snap.payItems||[]).forEach(function(it){
+    var div=document.createElement('div');div.className='pay-row';
+    div.innerHTML='<div class="pay-label"><i class="ti ti-dots" style="font-size:13px"></i><span contenteditable="true" class="editable" style="min-width:48px">'+it.name+'</span></div><input type="number" value="'+it.val+'" min="0" step="100" oninput="calc()"><span class="fixed-tag">載入</span><button class="del-btn" onclick="removeRow(this,\'pay-list\')">&#x2715;</button>';
+    pl.appendChild(div);
+  });
+  document.getElementById('saving').value=snap.saving||0;
+  calc();switchTab('input');showToast('已載入「'+snap.name+'」');
+}
+
+function renderHistory(){
+  var el=document.getElementById('hist-content');
+  try{
+    var arr=JSON.parse(localStorage.getItem('cashHistory')||'[]');
+    if(arr.length===0){el.innerHTML='<div class="empty-msg"><i class="ti ti-clock" style="font-size:28px;display:block;margin:0 auto 10px"></i>還沒有歷史紀錄<br><span style="font-size:12px;margin-top:4px;display:block">在記帳頁輸入後點「儲存本次紀錄」</span></div>';return;}
+    el.innerHTML='';
+    arr.forEach(function(s){
+      var div=document.createElement('div');div.className='hist-item';
+      div.innerHTML='<div class="hist-item-name">'+s.name+'</div><div class="hist-item-date">'+s.date+'</div>'
+        +'<div class="hist-item-nums">'
+        +'<div class="hist-num"><div class="hl">總收入</div><div class="hv">'+fmt(s.total)+'</div></div>'
+        +'<div class="hist-num"><div class="hl">代繳款</div><div class="hv" style="color:var(--brown)">'+fmt(s.payable)+'</div></div>'
+        +'<div class="hist-num"><div class="hl">可動現金</div><div class="hv" style="color:var(--blue)">'+fmt(s.avail)+'</div></div>'
+        +'</div>'
+        +'<div class="hist-actions">'
+        +'<button onclick=\'loadSnap('+JSON.stringify(s).replace(/\'/g,"\\'")+')\'><i class="ti ti-upload" style="font-size:12px"></i> 載入</button>'
+        +'<button class="del-action" onclick="deleteSnap('+s.id+')"><i class="ti ti-trash" style="font-size:12px"></i> 刪除</button>'
+        +'</div>';
+      el.appendChild(div);
+    });
+  }catch(e){el.innerHTML='<div class="empty-msg">載入失敗</div>';}
+}
+
+function drawWater(canvas,pct,t){
+  var ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+  var fillH=Math.round(h*Math.max(0,Math.min(1,pct))),baseY=h-fillH;
+  ctx.fillStyle='#dff0fa';ctx.beginPath();ctx.roundRect(0,0,w,h,8);ctx.fill();
+  ctx.save();ctx.beginPath();ctx.roundRect(0,0,w,h,8);ctx.clip();
+  ctx.fillStyle='#378ADD';ctx.beginPath();ctx.moveTo(0,baseY);
+  for(var x=0;x<=w;x+=3)ctx.lineTo(x,baseY+Math.sin((x/w)*Math.PI*4+t)*5+Math.sin((x/w)*Math.PI*2.3+t*1.3)*3);
+  ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.2)';ctx.beginPath();ctx.moveTo(0,baseY+2);
+  for(var x=0;x<=w;x+=3)ctx.lineTo(x,baseY+2+Math.sin((x/w)*Math.PI*4+t+1)*3);
+  ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#0C447C';ctx.font='500 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(Math.round(pct*100)+'%',w/2,h/2);ctx.restore();
+  ctx.strokeStyle='#85B7EB';ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(0,0,w,h,8);ctx.stroke();
+}
+
+function drawSoil(canvas,pct){
+  var ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+  var fillH=Math.round(h*Math.max(0,Math.min(1,pct))),baseY=h-fillH;
+  ctx.fillStyle='#f5ede0';ctx.beginPath();ctx.roundRect(0,0,w,h,8);ctx.fill();
+  ctx.save();ctx.beginPath();ctx.roundRect(0,0,w,h,8);ctx.clip();
+  if(fillH>0){ctx.fillStyle='#8B5E3C';ctx.fillRect(0,baseY,w,fillH);
+    for(var i=0;i<80;i++){var px=Math.random()*w,py=baseY+Math.random()*fillH;ctx.fillStyle=Math.random()>.5?'rgba(60,30,10,.22)':'rgba(180,120,60,.28)';ctx.beginPath();ctx.ellipse(px,py,Math.random()*3+1,Math.random()*1.5+.5,0,0,Math.PI*2);ctx.fill();}}
+  ctx.fillStyle='#412402';ctx.font='500 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(Math.round(pct*100)+'%',w/2,fillH>20?baseY+fillH/2:h/2);ctx.restore();
+  ctx.strokeStyle='#EF9F27';ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(0,0,w,h,8);ctx.stroke();
+}
+
+function drawPlant(canvas,pct){
+  var ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+  var p=Math.max(0,Math.min(1,pct));
+  ctx.fillStyle='#EAF3DE';ctx.beginPath();ctx.roundRect(0,0,w,h,8);ctx.fill();
+  ctx.save();ctx.beginPath();ctx.roundRect(0,0,w,h,8);ctx.clip();
+  var groundY=h-26;ctx.fillStyle='#7a5230';ctx.fillRect(0,groundY,w,26);
+  var stemH=Math.round((h-50)*p),stemX=w/2,stemTopY=groundY-stemH;
+  if(stemH>0){ctx.strokeStyle='#3B6D11';ctx.lineWidth=4;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(stemX,groundY);ctx.quadraticCurveTo(stemX+Math.sin(stemH*.05)*10,(groundY+stemTopY)/2,stemX,stemTopY);ctx.stroke();}
+  if(p>.2&&stemH>18){var ly=stemTopY+stemH*.6;ctx.fillStyle='#639922';ctx.save();ctx.translate(stemX,ly);ctx.rotate(-.5);ctx.beginPath();ctx.ellipse(-16,0,18,8,.3,0,Math.PI*2);ctx.fill();ctx.restore();ctx.save();ctx.translate(stemX,ly);ctx.rotate(.5);ctx.beginPath();ctx.ellipse(16,0,18,8,-.3,0,Math.PI*2);ctx.fill();ctx.restore();}
+  if(p>.5&&stemH>50){var ly2=stemTopY+stemH*.3;ctx.fillStyle='#3B6D11';ctx.save();ctx.translate(stemX,ly2);ctx.rotate(-.6);ctx.beginPath();ctx.ellipse(-20,0,22,10,.2,0,Math.PI*2);ctx.fill();ctx.restore();ctx.save();ctx.translate(stemX,ly2);ctx.rotate(.6);ctx.beginPath();ctx.ellipse(20,0,22,10,-.2,0,Math.PI*2);ctx.fill();ctx.restore();}
+  if(p>.75&&stemH>75){var r=Math.round(22*p);ctx.fillStyle='#5DCAA5';ctx.beginPath();ctx.arc(stemX,stemTopY,r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#3B6D11';ctx.beginPath();ctx.arc(stemX,stemTopY,r*.6,0,Math.PI*2);ctx.fill();ctx.fillStyle='#FAC775';ctx.beginPath();ctx.arc(stemX,stemTopY,r*.22,0,Math.PI*2);ctx.fill();}
+  else if(stemH>0){ctx.fillStyle='#97C459';ctx.beginPath();ctx.arc(stemX,stemTopY,9*p+4,0,Math.PI*2);ctx.fill();}
+  ctx.fillStyle='#27500A';ctx.font='500 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(Math.round(p*100)+'%',w/2,groundY-10);ctx.restore();
+  ctx.strokeStyle='#97C459';ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(0,0,w,h,8);ctx.stroke();
+}
+
+function loop(){
+  waveT+=0.04;
+  var total=Math.max(1,getTotal()),payable=Math.max(0,getPayable()),saving=Math.max(0,parseFloat(document.getElementById('saving').value)||0),avail=Math.max(0,total-payable-saving);
+  drawWater(document.getElementById('cWater'),avail/total,waveT);
+  requestAnimationFrame(loop);
+}
+
+calc();loop();
+</script>
+</body>
+</html>
